@@ -79,22 +79,56 @@ class _HomePageState extends State<HomePage> {
       _todoList[index]["title"] = taskController.text;
       _todoList[index]["description"] = descriptionController.text;
 
+      taskController.text = "";
+      descriptionController.text = "";
+
       _saveData();
     });
+  }
+
+  Future<Null> _refresh() async {
+    await Future.delayed(Duration(seconds: 1));
+
+    setState(() {
+      _todoList.sort((a, b) {
+        if (a["status"] && !b["status"])
+          return 1;
+        else if (!a["status"] && b["status"])
+          return -1;
+        else
+          return 0;
+      });
+
+      _saveData();
+    });
+
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        width: MediaQuery.of(context).size.width,
-        height: MediaQuery.of(context).size.height,
+        width: MediaQuery
+            .of(context)
+            .size
+            .width,
+        height: MediaQuery
+            .of(context)
+            .size
+            .height,
         child: Stack(
           children: <Widget>[
             Positioned(
               child: Container(
-                width: MediaQuery.of(context).size.width,
-                height: MediaQuery.of(context).size.height / 3,
+                width: MediaQuery
+                    .of(context)
+                    .size
+                    .width,
+                height: MediaQuery
+                    .of(context)
+                    .size
+                    .height / 3,
                 decoration: BoxDecoration(
                     color: Color(0xff5a348b),
                     gradient: LinearGradient(
@@ -110,9 +144,14 @@ class _HomePageState extends State<HomePage> {
               child: Container(
                 color: Colors.white,
                 width: 380.0,
-                height: MediaQuery.of(context).size.height / 1.5,
-                child: ListView.builder(
-                    itemCount: _todoList.length, itemBuilder: buildItem),
+                height: MediaQuery
+                    .of(context)
+                    .size
+                    .height / 1.5,
+                child: RefreshIndicator(onRefresh: _refresh,
+                  child: ListView.builder(
+                      itemCount: _todoList.length, itemBuilder: buildItem),
+                ),
               ),
             ),
           ],
@@ -120,6 +159,10 @@ class _HomePageState extends State<HomePage> {
       ),
       floatingActionButton: new FloatingActionButton(
         onPressed: () {
+
+          taskController.text = "";
+          descriptionController.text = "";
+
           showDialog(
               context: context,
               builder: (BuildContext context) {
@@ -183,17 +226,15 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _myListContainer(
-      String taskname, String subtask, String taskTime, position) {
+  Widget _myListContainer(String taskname, String subtask, String taskTime,
+      position) {
     return Padding(
         padding: const EdgeInsets.all(8.0),
         child: Material(
           child: InkWell(
             onTap: () {
-              taskController.text = _todoList[position]["title"];
-              descriptionController.text = _todoList[position]["description"];
-
               _openModal(position);
+
             },
             child: Container(
               height: 120.0,
@@ -259,7 +300,10 @@ class _HomePageState extends State<HomePage> {
 
   Widget _myHiddenContainer(Color taskColor) {
     return Container(
-      height: MediaQuery.of(context).size.height,
+      height: MediaQuery
+          .of(context)
+          .size
+          .height,
       color: taskColor,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -336,6 +380,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _openModal(position) {
+    taskController.text = _todoList[position]["title"];
+    descriptionController.text = _todoList[position]["description"];
+
     showDialog(
         context: context,
         builder: (BuildContext context) {
