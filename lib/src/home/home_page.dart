@@ -5,6 +5,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:convert';
 import 'dart:async';
+import 'package:intl/intl.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -16,7 +17,6 @@ class _HomePageState extends State<HomePage> {
 
   final taskController = TextEditingController();
   final descriptionController = TextEditingController();
-  final tasktimeController = TextEditingController();
 
   Map<String, dynamic> _lastRemoved;
   int _lastRemovedIndex;
@@ -45,6 +45,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+
     _readData().then((data) {
       setState(() {
         _todoList = json.decode(data);
@@ -53,19 +54,31 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void _addTask(Color color) {
+  void _addTask() {
+    var now = new DateTime.now();
+    var formatter = new DateFormat('Hm');
+    String formatted = formatter.format(now);
+
     setState(() {
       Map<String, dynamic> task = new Map();
       task["title"] = taskController.text;
       task["description"] = descriptionController.text;
-      task["time"] = tasktimeController.text;
+      task["time"] = formatted;
       task["status"] = false;
 
       taskController.text = "";
       descriptionController.text = "";
-      tasktimeController.text = "";
 
       _todoList.add(task);
+      _saveData();
+    });
+  }
+
+  void _updatedTask(int index) {
+    setState(() {
+      _todoList[index]["title"] = taskController.text;
+      _todoList[index]["description"] = descriptionController.text;
+
       _saveData();
     });
   }
@@ -99,47 +112,7 @@ class _HomePageState extends State<HomePage> {
                 width: 380.0,
                 height: MediaQuery.of(context).size.height / 1.5,
                 child: ListView.builder(
-                    itemCount: _todoList.length,
-                    itemBuilder: (context, position) {
-                      return Dismissible(
-                        key: Key(_todoList[position].toString()),
-                        background: _myHiddenContainer(Colors.deepPurple),
-                        child: _myListContainer(
-                            _todoList[position]["title"],
-                            _todoList[position]["description"],
-                            _todoList[position]["time"],
-                            Colors.deepPurple),
-                        direction: DismissDirection.startToEnd,
-                        onDismissed: (direction) {
-                          if (direction == DismissDirection.startToEnd) {
-                            setState(() {
-                              _lastRemoved = Map.from(_todoList[position]);
-                              _lastRemovedIndex = position;
-
-                              _todoList.removeAt(position);
-                              _saveData();
-
-                              final snack = SnackBar(
-                                content: Text(
-                                    "Tarefa ${_lastRemoved["title"]} removida"),
-                                action: SnackBarAction(
-                                  label: "Desfazer",
-                                  onPressed: () {
-                                    setState(() {
-                                      _todoList.insert(
-                                          _lastRemovedIndex, _lastRemoved);
-                                      _saveData();
-                                    });
-                                  },
-                                ),
-                                duration: Duration(seconds: 2),
-                              );
-                              Scaffold.of(context).showSnackBar(snack);
-                            });
-                          }
-                        },
-                      );
-                    }),
+                    itemCount: _todoList.length, itemBuilder: buildItem),
               ),
             ),
           ],
@@ -150,8 +123,6 @@ class _HomePageState extends State<HomePage> {
           showDialog(
               context: context,
               builder: (BuildContext context) {
-                Color taskcolor;
-
                 return AlertDialog(
                   title: Text("Nova tarefa"),
                   content: Container(
@@ -164,7 +135,7 @@ class _HomePageState extends State<HomePage> {
                             textAlign: TextAlign.left,
                             decoration: InputDecoration(
                               border: InputBorder.none,
-                              hintText: "Task Title",
+                              hintText: "Título",
                               hintStyle: TextStyle(color: Colors.grey),
                             ),
                           ),
@@ -176,66 +147,7 @@ class _HomePageState extends State<HomePage> {
                             textAlign: TextAlign.left,
                             decoration: InputDecoration(
                               border: InputBorder.none,
-                              hintText: "Sub Task",
-                              hintStyle: TextStyle(color: Colors.grey),
-                            ),
-                          ),
-                        ),
-                        Container(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: <Widget>[
-                              new GestureDetector(
-                                onTap: () {
-                                  taskcolor = Colors.purple;
-                                },
-                                child: Container(
-                                  width: 25.0,
-                                  height: 25.0,
-                                  color: Colors.purple,
-                                ),
-                              ),
-                              new GestureDetector(
-                                onTap: () {
-                                  taskcolor = Colors.amber;
-                                },
-                                child: Container(
-                                  width: 25.0,
-                                  height: 25.0,
-                                  color: Colors.amber,
-                                ),
-                              ),
-                              new GestureDetector(
-                                onTap: () {
-                                  taskcolor = Colors.blue;
-                                },
-                                child: Container(
-                                  width: 25.0,
-                                  height: 25.0,
-                                  color: Colors.blue,
-                                ),
-                              ),
-                              new GestureDetector(
-                                onTap: () {
-                                  taskcolor = Colors.green;
-                                },
-                                child: Container(
-                                  width: 25.0,
-                                  height: 25.0,
-                                  color: Colors.green,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          child: TextField(
-                            controller: tasktimeController,
-                            obscureText: false,
-                            textAlign: TextAlign.left,
-                            decoration: InputDecoration(
-                              border: InputBorder.none,
-                              hintText: "Task Time",
+                              hintText: "Descrição",
                               hintStyle: TextStyle(color: Colors.grey),
                             ),
                           ),
@@ -253,7 +165,7 @@ class _HomePageState extends State<HomePage> {
                         style: new TextStyle(color: Colors.white),
                       ),
                       onPressed: () {
-                        _addTask(taskcolor);
+                        _addTask();
 
                         Navigator.pop(context);
                       },
@@ -272,68 +184,77 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _myListContainer(
-      String taskname, String subtask, String taskTime, Color taskColor) {
+      String taskname, String subtask, String taskTime, position) {
     return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Container(
-        height: 120.0,
+        padding: const EdgeInsets.all(8.0),
         child: Material(
-          color: Colors.white,
-          elevation: 14.0,
-          shadowColor: Color(0x802196F3),
-          child: Container(
-            child: Row(
-              children: <Widget>[
-                Container(
-                  height: 80.0,
-                  width: 10.0,
-                  color: taskColor,
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: <Widget>[
-                        Align(
-                          alignment: Alignment.topLeft,
-                          child: Container(
-                            child: Text(taskname,
-                                style: TextStyle(
-                                    fontSize: 24.0,
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.bold)),
+          child: InkWell(
+            onTap: () {
+              taskController.text = _todoList[position]["title"];
+              descriptionController.text = _todoList[position]["description"];
+
+              _openModal(position);
+            },
+            child: Container(
+              height: 120.0,
+              child: Material(
+                color: Colors.white,
+                elevation: 14.0,
+                shadowColor: Color(0x802196F3),
+                child: Container(
+                  child: Row(
+                    children: <Widget>[
+                      Container(
+                        height: 80.0,
+                        width: 10.0,
+                        color: Color(_todoList[position]["status"]
+                            ? 0xFF00FF7F
+                            : 0xffb74093),
+                      ),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: <Widget>[
+                              Align(
+                                alignment: Alignment.topLeft,
+                                child: Container(
+                                  child: Text(taskname,
+                                      style: TextStyle(
+                                          fontSize: 24.0,
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.bold)),
+                                ),
+                              ),
+                              Align(
+                                alignment: Alignment.topLeft,
+                                child: Container(
+                                  child: Text(subtask,
+                                      style: TextStyle(
+                                          fontSize: 18.0,
+                                          color: Colors.blueAccent)),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        Align(
-                          alignment: Alignment.topLeft,
-                          child: Container(
-                            child: Text(subtask,
-                                style: TextStyle(
-                                    fontSize: 18.0, color: Colors.blueAccent)),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                      Checkbox(
+                        value: _todoList[position]["status"],
+                        onChanged: (check) {
+                          setState(() {
+                            _todoList[position]["status"] = check;
+                          });
+                        },
+                      ),
+                    ],
                   ),
                 ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Container(
-                      child: Text(taskTime,
-                          style:
-                              TextStyle(fontSize: 18.0, color: Colors.black45)),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
-    );
+        ));
   }
 
   Widget _myHiddenContainer(Color taskColor) {
@@ -373,5 +294,100 @@ class _HomePageState extends State<HomePage> {
             style: TextStyle(fontSize: 30.0, color: Colors.white)),
       ),
     );
+  }
+
+  Widget buildItem(context, position) {
+    return Dismissible(
+      key: Key(_todoList[position].toString()),
+      background: _myHiddenContainer(Colors.deepPurple),
+      child: _myListContainer(
+          _todoList[position]["title"],
+          _todoList[position]["description"],
+          _todoList[position]["time"],
+          position),
+      direction: DismissDirection.startToEnd,
+      onDismissed: (direction) {
+        if (direction == DismissDirection.startToEnd) {
+          setState(() {
+            _lastRemoved = Map.from(_todoList[position]);
+            _lastRemovedIndex = position;
+
+            _todoList.removeAt(position);
+            _saveData();
+
+            final snack = SnackBar(
+              content: Text("Tarefa ${_lastRemoved["title"]} removida"),
+              action: SnackBarAction(
+                label: "Desfazer",
+                onPressed: () {
+                  setState(() {
+                    _todoList.insert(_lastRemovedIndex, _lastRemoved);
+                    _saveData();
+                  });
+                },
+              ),
+              duration: Duration(seconds: 2),
+            );
+            Scaffold.of(context).showSnackBar(snack);
+          });
+        }
+      },
+    );
+  }
+
+  void _openModal(position) {
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text("Atualizar tarefa"),
+            content: Container(
+              height: 250.0,
+              child: Column(
+                children: <Widget>[
+                  Container(
+                    child: TextField(
+                      controller: taskController,
+                      textAlign: TextAlign.left,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        hintText: "Título",
+                        hintStyle: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    child: TextField(
+                      controller: descriptionController,
+                      obscureText: false,
+                      textAlign: TextAlign.left,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        hintText: "Descrição",
+                        hintStyle: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: <Widget>[
+              RaisedButton(
+                shape: RoundedRectangleBorder(
+                    borderRadius: new BorderRadius.circular(30.0)),
+                color: Color(0xff2da9ef),
+                child: Text(
+                  "Atualizar",
+                  style: new TextStyle(color: Colors.white),
+                ),
+                onPressed: () {
+                  _updatedTask(position);
+
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          );
+        });
   }
 }
